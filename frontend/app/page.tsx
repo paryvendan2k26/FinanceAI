@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import Navbar from '@/components/Navbar'
-import ChatInterface from '@/components/ChatInterface'
+//import ChatInterface from '@/components/ChatInterface'
 import StockAnalysis from '@/components/StockAnalysis'
 import Hero from '@/components/Hero'
 
@@ -16,7 +16,7 @@ export default function Home() {
       
       <main className="container mx-auto px-4 py-8">
         {activeTab === 'home' && <Hero setActiveTab={setActiveTab} />}
-        {activeTab === 'chat' && <ChatInterface />}
+        {/* {activeTab === 'chat' && <ChatInterface />} */}
         {activeTab === 'stock' && <StockAnalysis />}
       </main>
     </div>

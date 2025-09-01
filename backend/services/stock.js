@@ -319,6 +319,41 @@ End with a clear, actionable recommendation that specifies:
             yield `Error in stock analysis: ${error.message}`;
         }
     }
+    // Add this method to your StockAnalysisService class
+async* generateChatResponse(message, stockName, analysisContext) {
+    try {
+        const chatQuery = `
+Previous Stock Analysis for ${stockName}:
+${analysisContext}
+
+User Question: ${message}
+
+Based on the stock analysis above, please provide a helpful, specific answer to the user's question about ${stockName}. 
+
+Guidelines:
+- Keep your response conversational and helpful
+- Reference specific points from the analysis when relevant  
+- If the question asks for advice beyond the analysis scope, provide general investment guidance
+- Be honest if the analysis doesn't contain enough information to fully answer the question
+- Keep responses focused and under 200 words unless more detail is specifically requested
+
+Provide a direct, helpful response:
+        `.trim();
+
+        const result = await this.model.generateContentStream(chatQuery);
+
+        for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            if (chunkText) {
+                yield chunkText;
+            }
+        }
+
+    } catch (error) {
+        console.error('Chat response generation error:', error);
+        yield `I apologize, but I'm having trouble processing your question right now. Please try asking again.`;
+    }
+}
 }
 
 // Export the service

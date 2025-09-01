@@ -316,6 +316,34 @@ io.on('connection', (socket) => {
             console.error('Stock analysis WebSocket error:', error);
             socket.emit('error', { message: error.message });
         }
+        // ADD THIS NEW HANDLER RIGHT HERE
+socket.on('chat_about_analysis', async (data) => {
+    try {
+        const { message, stock_name, analysis_context } = data;
+        
+        if (!message || !stock_name || !analysis_context) {
+            socket.emit('error', { message: 'Missing required chat data' });
+            return;
+        }
+
+        // Use the same way you initialize StockAnalysisService in your existing handler
+        const stockService = new StockAnalysisService();
+        
+        let fullResponse = '';
+        
+        // Stream the chat response
+        for await (const chunk of stockService.generateChatResponse(message, stock_name, analysis_context)) {
+            fullResponse += chunk;
+        }
+        
+        // Send the complete response
+        socket.emit('chat_response', fullResponse);
+        
+    } catch (error) {
+        console.error('Chat handler error:', error);
+        socket.emit('error', { message: 'Failed to process chat message' });
+    }
+});
     });
 
     socket.on('disconnect', () => {

@@ -2,9 +2,16 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { TrendingUp, Upload, FileText, X, Loader2, AlertCircle, CheckCircle, ExternalLink, Search, Calendar, Target, BarChart3, DollarSign, Activity, PieChart, Zap, Shield, Globe, Clock } from 'lucide-react'
+import { TrendingUp, Upload, FileText, X, Loader2, AlertCircle, CheckCircle, ExternalLink, Search, Calendar, Target, BarChart3, DollarSign, Activity, PieChart, Zap, Shield, Globe, Clock, MessageCircle, Send, ChevronDown, ChevronUp, Bot, User } from 'lucide-react'
 import { socketManager } from '@/lib/socket'
 import ReactMarkdown from 'react-markdown'
+
+interface ChatMessage {
+  id: string
+  type: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+}
 
 interface StockMetrics {
   [key: string]: string
@@ -27,7 +34,12 @@ export default function StockAnalysis() {
   const [sources, setSources] = useState<Source[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [processingStatus, setProcessingStatus] = useState('')
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isChatLoading, setIsChatLoading] = useState(false)
   const analysisEndRef = useRef<HTMLDivElement>(null)
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const socket = socketManager.connect()
@@ -53,6 +65,20 @@ export default function StockAnalysis() {
       setIsAnalyzing(false)
       setIsStreaming(false)
       setProcessingStatus('')
+      // Show chat option after analysis is complete
+      if (analysis) {
+        setTimeout(() => setIsChatOpen(true), 1000)
+      }
+    })
+
+    socket.on('chat_response', (response) => {
+      setChatMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: response,
+        timestamp: new Date()
+      }])
+      setIsChatLoading(false)
     })
 
     socket.on('error', (error) => {
@@ -69,6 +95,7 @@ export default function StockAnalysis() {
       socket.off('metrics')
       socket.off('done')
       socket.off('error')
+      socket.off('chat_response')
     }
   }, [])
 
@@ -103,12 +130,51 @@ export default function StockAnalysis() {
     }
   }, [isAnalyzing])
 
-  // Only auto-scroll if user hasn't manually scrolled and content is being generated
+  // Auto-scroll chat to bottom
   useEffect(() => {
-    if (analysis && isStreaming && !userHasScrolled) {
-      analysisEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (chatMessages.length > 0) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [analysis, isStreaming, userHasScrolled])
+  }, [chatMessages])
+
+  const handleSendMessage = () => {
+    if (!chatInput.trim() || isChatLoading) return
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: chatInput,
+      timestamp: new Date()
+    }
+
+    setChatMessages(prev => [...prev, userMessage])
+    setIsChatLoading(true)
+    
+    const socket = socketManager.getSocket()
+    socket?.emit('chat_about_analysis', {
+      message: chatInput,
+      stock_name: stockName,
+      analysis_context: analysis
+    })
+
+    setChatInput('')
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const suggestedQuestions = [
+    "What are the main risks I should consider?",
+    "How does this compare to competitors?",
+    "What's the best entry point?",
+    "Should I wait for a better price?",
+    "What are the key catalysts to watch?",
+    "How much should I invest?"
+  ]
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -126,6 +192,13 @@ export default function StockAnalysis() {
     setUploadedFile(null)
   }
 
+  // Only auto-scroll if user hasn't manually scrolled and content is being generated
+  useEffect(() => {
+    if (analysis && isStreaming && !userHasScrolled) {
+      analysisEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [analysis, isStreaming, userHasScrolled])
+
   const handleAnalyze = () => {
     if (!stockName.trim()) return
 
@@ -133,6 +206,8 @@ export default function StockAnalysis() {
     setAnalysis('')
     setMetrics({})
     setSources([])
+    setChatMessages([]) // Reset chat when starting new analysis
+    setIsChatOpen(false)
     setIsStreaming(true)
     setProcessingStatus('Initializing analysis...')
 
@@ -169,6 +244,8 @@ export default function StockAnalysis() {
         setAnalysis('')
         setMetrics({})
         setSources([])
+        setChatMessages([]) // Reset chat
+        setIsChatOpen(false)
         setIsStreaming(true)
         setProcessingStatus('Initializing analysis...')
 
@@ -245,15 +322,15 @@ export default function StockAnalysis() {
                   Investment Horizon
                 </label>
                 <select
-                  value={timeHorizon}
-                  onChange={(e) => setTimeHorizon(e.target.value)}
-                  className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:neon-border transition-all duration-300"
-                  disabled={isAnalyzing}
-                >
-                  <option value="short-term">Short-term (1-6 months)</option>
-                  <option value="medium-term">Medium-term (6-18 months)</option>
-                  <option value="long-term">Long-term (2+ years)</option>
-                </select>
+  value={timeHorizon}
+  onChange={(e) => setTimeHorizon(e.target.value)}
+  className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:neon-border transition-all duration-300 [&>option]:bg-zinc-800 [&>option]:text-white"
+  disabled={isAnalyzing}
+>
+  <option value="short-term">Short-term (1-6 months)</option>
+  <option value="medium-term">Medium-term (6-18 months)</option>
+  <option value="long-term">Long-term (2+ years)</option>
+</select>
                 <p className="text-xs text-gray-500 mt-1">
                   Analysis strategy adapts to your investment timeline
                 </p>
@@ -614,6 +691,133 @@ export default function StockAnalysis() {
               )}
               <div ref={analysisEndRef} />
             </div>
+            
+            {/* Chat Panel */}
+            {analysis && !isAnalyzing && (
+              <div className={`border-t border-white/10 transition-all duration-300 ${isChatOpen ? 'max-h-96' : 'max-h-16'}`}>
+                {/* Chat Header */}
+                <button
+                  onClick={() => setIsChatOpen(!isChatOpen)}
+                  className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-neon-blue to-neon-purple rounded-full flex items-center justify-center">
+                      <MessageCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-white font-medium">Ask about this analysis</div>
+                      <div className="text-xs text-gray-400">
+                        {chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Get personalized insights'}
+                      </div>
+                    </div>
+                  </div>
+                  {isChatOpen ? (
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  ) : (
+                    <ChevronUp className="w-5 h-5 text-gray-400" />
+                  )}
+                </button>
+
+                {/* Chat Content */}
+                {isChatOpen && (
+                  <div className="border-t border-white/10">
+                    {/* Chat Messages */}
+                    <div className="max-h-64 overflow-y-auto p-4 space-y-3">
+                      {chatMessages.length === 0 && (
+                        <div className="text-center py-4">
+                          <Bot className="w-8 h-8 mx-auto text-neon-blue mb-2" />
+                          <p className="text-gray-400 text-sm mb-4">Ask me anything about this {stockName} analysis</p>
+                          <div className="grid grid-cols-1 gap-2">
+                            {suggestedQuestions.slice(0, 3).map((question, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setChatInput(question)}
+                                className="text-xs p-2 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 hover:text-white transition-all duration-200 text-left"
+                              >
+                                {question}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {chatMessages.map((message) => (
+                        <div key={message.id} className={`flex items-start space-x-2 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          {message.type === 'assistant' && (
+                            <div className="w-6 h-6 bg-gradient-to-r from-neon-blue to-neon-purple rounded-full flex items-center justify-center flex-shrink-0">
+                              <Bot className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                          <div className={`max-w-[80%] p-3 rounded-lg ${
+                            message.type === 'user' 
+                              ? 'bg-gradient-to-r from-neon-blue to-neon-purple text-white' 
+                              : 'bg-white/10 text-gray-300'
+                          }`}>
+                            <p className="text-sm">{message.content}</p>
+                            <p className="text-xs opacity-70 mt-1">
+                              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          {message.type === 'user' && (
+                            <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                              <User className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {isChatLoading && (
+                        <div className="flex items-start space-x-2">
+                          <div className="w-6 h-6 bg-gradient-to-r from-neon-blue to-neon-purple rounded-full flex items-center justify-center flex-shrink-0">
+                            <Bot className="w-3 h-3 text-white" />
+                          </div>
+                          <div className="bg-white/10 p-3 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <Loader2 className="w-4 h-4 animate-spin text-neon-blue" />
+                              <span className="text-sm text-gray-400">Thinking...</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    {/* Chat Input */}
+                    <div className="border-t border-white/10 p-4">
+                      <div className="flex items-end space-x-2">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder={`Ask about ${stockName}...`}
+                            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-neon-blue/50 transition-all duration-300 resize-none"
+                            disabled={isChatLoading}
+                          />
+                          {!isChatLoading && suggestedQuestions.slice(0, 2).map((question, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setChatInput(question)}
+                              className="inline-block mt-1 mr-2 text-xs px-2 py-1 bg-white/5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-all duration-200"
+                            >
+                              {question}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={handleSendMessage}
+                          disabled={!chatInput.trim() || isChatLoading}
+                          className="p-3 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg text-white hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

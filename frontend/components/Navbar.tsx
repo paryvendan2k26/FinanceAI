@@ -56,19 +56,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
             <Home className="w-5 h-5" />
             <span>Home</span>
           </button>
-          
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 ${
-              activeTab === 'chat'
-                ? 'bg-neon-blue/20 text-neon-blue neon-border'
-                : 'hover:bg-white/10'
-            }`}
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span>AI Chat</span>
-          </button>
-          
+
           <button
             onClick={() => setActiveTab('stock')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 ${

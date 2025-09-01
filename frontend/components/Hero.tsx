@@ -23,14 +23,6 @@ export default function Hero({ setActiveTab }: HeroProps) {
         
         <div className="flex justify-center space-x-6 mb-16">
           <button
-            onClick={() => setActiveTab('chat')}
-            className="group flex items-center space-x-3 bg-gradient-to-r from-neon-blue to-neon-purple px-8 py-4 rounded-2xl font-semibold text-white hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-neon-blue/25"
-          >
-            <span>Start AI Chat</span>
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
-          
-          <button
             onClick={() => setActiveTab('stock')}
             className="group flex items-center space-x-3 glass-card px-8 py-4 rounded-2xl font-semibold hover:neon-border hover:scale-105 transition-all duration-300"
           >
